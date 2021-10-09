@@ -23,7 +23,6 @@ const runMode: "external" | "server" | "namedPipeServer" | "inline" = "inline";
 export function activate(context: vscode.ExtensionContext) {
   // debug adapters can be run in different ways by using a vscode.DebugAdapterDescriptorFactory:
 
-  console.log(runMode);
   switch (runMode) {
     case "server":
       // run the debug adapter as a server inside the extension and communicate via a socket

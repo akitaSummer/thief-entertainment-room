@@ -33,6 +33,11 @@ import {
   IRuntimeVariableType,
 } from "./mockRuntime";
 import { Subject } from "await-notify";
+import DZZGame from "./ddz/Game";
+import Poker from "./ddz/Poker";
+import DZZAI from "./ddz/AI";
+import DZZPlayer from "./ddz/Player";
+import { setInterval } from "timers";
 
 /**
  * This interface describes the mock-debug specific launch attributes
@@ -77,6 +82,13 @@ export class MockDebugSession extends LoggingDebugSession {
   private _useInvalidatedEvent = false;
 
   private _addressesInHex = true;
+
+  // 斗地主游戏实例
+  private _game: DZZGame;
+
+  private _playerStr = "player1";
+
+  private _pokerList: Poker[];
 
   /**
    * Creates a new debug adapter that is used for one debug session.
@@ -146,6 +158,10 @@ export class MockDebugSession extends LoggingDebugSession {
     this._runtime.on("end", () => {
       this.sendEvent(new TerminatedEvent());
     });
+
+    // 实例化游戏
+    this._game = new DZZGame();
+    this._pokerList = [];
   }
 
   /**
@@ -231,6 +247,19 @@ export class MockDebugSession extends LoggingDebugSession {
     // we request them early by sending an 'initializeRequest' to the frontend.
     // The frontend will end the configuration sequence by calling 'configurationDone' request.
     this.sendEvent(new InitializedEvent());
+
+    {
+      const e: DebugProtocol.OutputEvent = new OutputEvent(
+        "(node: 22473) [DEP006] Welcome to : thief enterainment room"
+      );
+
+      e.body.category = "stderr";
+      e.body.source = this.createSource(
+        "./app/Contents/Resources/app/output/fork.ts"
+      );
+      e.body.line = 5;
+      this.sendEvent(e);
+    }
   }
 
   /**
@@ -564,6 +593,14 @@ export class MockDebugSession extends LoggingDebugSession {
 
     switch (args.context) {
       case "repl":
+        if (args.expression === "ready") {
+          this.setReady();
+          return;
+        }
+        if (args.expression === "1") {
+          this.callPoint(1);
+          return;
+        }
         // handle some REPL commands:
         // 'evaluate' supports to create and delete breakpoints from the 'repl':
         const matches = /new +([0-9]+)/.exec(args.expression);
@@ -959,5 +996,106 @@ export class MockDebugSession extends LoggingDebugSession {
       undefined,
       "mock-adapter-data"
     );
+  }
+
+  private setReady() {
+    this._game.playerList[0].setReady();
+    {
+      const e: DebugProtocol.OutputEvent = new OutputEvent(
+        `Your card : ${JSON.stringify(
+          this._game.playerList[0].pokerList.map((item) => item.text)
+        )}, please call points`
+      );
+
+      e.body.category = "console";
+      e.body.source = this.createSource(
+        "./app/Contents/Resources/app/output/card.ts"
+      );
+      e.body.line = 32;
+      this.sendEvent(e);
+    }
+  }
+
+  private getMyCards() {
+    const e: DebugProtocol.OutputEvent = new OutputEvent(
+      `Your card : ${JSON.stringify(
+        this._game.playerList[0].pokerList.map((item) => item.text)
+      )}`
+    );
+
+    e.body.category = "console";
+    e.body.source = this.createSource(
+      "./app/Contents/Resources/app/output/card.ts"
+    );
+    e.body.line = 32;
+    this.sendEvent(e);
+  }
+
+  private callPoint(n: number) {
+    this._game.playerList[0].setJiaoFen(n);
+    {
+      const e: DebugProtocol.OutputEvent = new OutputEvent(
+        `Your point : ${this._game.playerList[0].jiaoFen}\n`
+      );
+
+      e.body.category = "stdout";
+      e.body.source = this.createSource(
+        "./app/Contents/Resources/app/output/point.ts"
+      );
+      e.body.line = 24;
+      this.sendEvent(e);
+    }
+    {
+      const e: DebugProtocol.OutputEvent = new OutputEvent(
+        `player1 point : ${this._game.playerList[1].jiaoFen}\n`
+      );
+
+      e.body.category = "stdout";
+      e.body.source = this.createSource(
+        "./app/Contents/Resources/app/output/point.ts"
+      );
+      e.body.line = 44;
+      this.sendEvent(e);
+    }
+    {
+      const e: DebugProtocol.OutputEvent = new OutputEvent(
+        `player2 point : ${this._game.playerList[2].jiaoFen}\n`
+      );
+
+      e.body.category = "stdout";
+      e.body.source = this.createSource(
+        "./app/Contents/Resources/app/output/point.ts"
+      );
+      e.body.line = 74;
+      this.sendEvent(e);
+    }
+    {
+      const e: DebugProtocol.OutputEvent = new OutputEvent(
+        `dizhu poker is : ${JSON.stringify(
+          this._game.dizhuPokerList.map((item) => item.text)
+        )}`
+      );
+
+      e.body.category = "stderr";
+      e.body.source = this.createSource(
+        "./app/Contents/Resources/app/output/poker.ts"
+      );
+      e.body.line = 234;
+      this.sendEvent(e);
+    }
+    setInterval(() => {
+      const e: DebugProtocol.OutputEvent = new OutputEvent(
+        `Remaining playing time : ${this._game.second}s\n`
+      );
+
+      e.body.category = "stderr";
+      e.body.source = this.createSource(
+        "./app/Contents/Resources/app/output/second.ts"
+      );
+      e.body.line = 24;
+      this.sendEvent(e);
+    }, 1000);
+
+    this.getMyCards();
   }
 }
